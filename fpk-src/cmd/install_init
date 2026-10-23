@@ -1,0 +1,14 @@
+#!/bin/bash
+# 安装文件落盘之前执行（可能被重复执行，必须幂等）
+LOG="${TRIM_TEMP_LOGFILE:-/dev/stderr}"
+PY312="/var/apps/python312/target/bin/python3"
+
+# manifest 里声明了 install_dep_apps=python312，正常会自动装好；
+# 这里再兜底检查一次，缺运行时就在安装阶段明确告知用户，而不是等到启动才失败。
+if [ ! -x "$PY312" ] && ! command -v python3 >/dev/null 2>&1; then
+    echo "缺少 Python 运行时：请在应用中心先安装「Python 3.12」(python312)，再安装本应用。" > "$LOG"
+    exit 1
+fi
+
+mkdir -p "${TRIM_PKGVAR}/data" 2>/dev/null || true
+exit 0

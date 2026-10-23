@@ -1,0 +1,5 @@
+#!/bin/bash
+# 升级后执行：清掉旧版可能残留的 pid 文件，避免 status 误判；数据不做迁移（结构向后兼容）
+rm -f "${TRIM_PKGVAR}/app.pid" 2>/dev/null || true
+mkdir -p "${TRIM_PKGVAR}/data" 2>/dev/null || true
+exit 0

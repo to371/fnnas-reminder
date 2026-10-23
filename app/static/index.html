@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>定时提醒</title>
+<style>
+  :root{
+    --bg1:#eef3ff; --bg2:#f7f8fb; --bg3:#eafaf3;
+    --panel:#fff; --line:#e6e8ec; --text:#1b1f24; --muted:#6b7280;
+    --accent:#2f6bff; --accent-soft:#eaf0ff; --ok:#0f9d58; --err:#d93025; --warn:#b26b00;
+    --radius:12px; --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08);
+  }
+  *{box-sizing:border-box}
+  html{min-height:100%}
+  body{margin:0;min-height:100vh;color:var(--text);
+    background:linear-gradient(160deg,var(--bg1) 0%,var(--bg2) 45%,var(--bg3) 100%);
+    background-attachment:fixed;
+    font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+  header{position:sticky;top:0;z-index:5;background:rgba(255,255,255,.72);backdrop-filter:blur(10px);border-bottom:1px solid rgba(230,232,236,.9)}
+  .wrap{max-width:980px;margin:0 auto;padding:0 20px}
+  .bar{display:flex;align-items:center;gap:12px;height:60px}
+  .logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#2f6bff,#7aa2ff);display:grid;place-items:center;color:#fff;font-size:15px}
+  h1{font-size:16px;margin:0;font-weight:600;letter-spacing:.2px}
+  .spacer{flex:1}
+  main{padding:24px 0 60px}
+  .tabs{display:flex;gap:6px;margin-bottom:18px}
+  .tab{padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:#fff;cursor:pointer;color:var(--muted);font-size:13px}
+  .tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 18px;margin-bottom:12px}
+  .row{display:flex;align-items:flex-start;gap:12px}
+  .grow{flex:1;min-width:0}
+  .title{font-weight:600;font-size:15px;margin-bottom:2px}
+  .meta{color:var(--muted);font-size:12.5px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .pill{display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border-radius:999px;background:#f2f4f7;border:1px solid var(--line);font-size:11.5px;color:#414651}
+  .pill.on{background:#e9f7ef;border-color:#c4e8d4;color:#0f7a45}
+  .pill.off{background:#f2f4f7;color:#98a2b3}
+  .pill.done{background:#eef1f6;border-color:#dfe3ea;color:#7b8494}
+  .card.done{opacity:.62}
+  .btn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:6px 12px;font-size:13px;cursor:pointer;color:var(--text);white-space:nowrap}
+  .btn:hover{background:#f9fafb}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.primary:hover{filter:brightness(.96)}
+  .btn.danger{color:var(--err)}
+  .btn.sm{padding:4px 9px;font-size:12px;border-radius:8px}
+  .empty{text-align:center;color:var(--muted);padding:48px 0}
+  /* form */
+  label{display:block;font-size:12.5px;color:var(--muted);margin:12px 0 5px}
+  input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:9px;font:inherit;background:#fff;color:var(--text)}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+  textarea{min-height:70px;resize:vertical}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  .days{display:flex;gap:6px;flex-wrap:wrap}
+  .day{width:38px;height:32px;border:1px solid var(--line);border-radius:8px;display:grid;place-items:center;cursor:pointer;font-size:12.5px;background:#fff;user-select:none}
+  .day.on{background:var(--accent-soft);border-color:#b9cbff;color:#1f4ddb;font-weight:600}
+  .checks{display:flex;gap:16px;margin-top:6px;flex-wrap:wrap}
+  .checks label{display:flex;align-items:center;gap:6px;margin:0;color:var(--text);font-size:13px;cursor:pointer}
+  .checks input{width:auto}
+  /* 设置里的通道分组 */
+  .chan{border:1px solid var(--line);border-radius:11px;padding:0 14px 12px;margin-top:12px;background:#fcfdff}
+  .chan h3{font-size:13.5px;margin:14px 0 0}
+  /* modal */
+  .mask{position:fixed;inset:0;background:rgba(16,24,40,.35);display:none;z-index:20;padding:40px 16px;overflow:auto}
+  .mask.show{display:block}
+  .modal{max-width:620px;margin:0 auto;background:#fff;border-radius:14px;box-shadow:0 20px 48px rgba(16,24,40,.2);padding:20px 22px}
+  .modal h2{font-size:16px;margin:0 0 4px}
+  .modal .foot{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;border-top:1px solid var(--line);padding-top:14px}
+  .hint{font-size:12px;color:var(--muted);margin-top:4px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:500;background:#fafbfc}
+  .ok{color:var(--ok)} .bad{color:var(--err)} .skip{color:#98a2b3}
+  code{background:#f4f5f7;padding:1px 5px;border-radius:5px;font-size:12px}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#1b1f24;color:#fff;padding:9px 16px;border-radius:10px;font-size:13px;opacity:0;transition:.25s;pointer-events:none;z-index:30}
+  .toast.show{opacity:1;bottom:34px}
+  /* 消息模板编辑器 */
+  .seg{display:inline-flex;background:#f2f4f7;border-radius:9px;padding:2px;margin:10px 0 0}
+  .seg-btn{border:0;background:transparent;padding:5px 12px;border-radius:7px;font-size:12.5px;color:#475467;cursor:pointer;font:inherit;font-size:12.5px}
+  .seg-btn.active{background:#fff;color:var(--text);box-shadow:0 1px 2px rgba(16,24,40,.12);font-weight:600}
+  textarea.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.75;min-height:214px}
+  .tools{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .tools-label{font-size:12px;color:var(--muted);margin-right:2px}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:7px;min-width:28px;height:26px;font-size:14px;cursor:pointer;line-height:1;padding:0 4px}
+  .chip:hover{background:#f9fafb}
+  .chip.wide{width:auto;padding:0 7px;font-size:11.5px;color:#475467;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .sw{width:22px;height:22px;border-radius:6px;cursor:pointer;border:1px solid rgba(0,0,0,.1);display:inline-block;padding:0}
+  .pv-label{font-size:12px;color:var(--muted);margin:16px 0 6px;display:flex;justify-content:space-between;align-items:baseline}
+  /* 钉钉气泡的近似效果 */
+  .dtb{background:#fff;border:1px solid #e3e6ea;border-radius:11px;padding:13px 15px;color:#1b1f24;
+    font-size:13.5px;line-height:1.75;max-height:300px;overflow:auto;word-break:break-word}
+  .dtb .h{font-weight:700;margin:1px 0 7px;line-height:1.45}
+  .dtb .h1{font-size:17.5px} .dtb .h2{font-size:16.5px} .dtb .h3{font-size:15.5px}
+  .dtb .p{margin:2px 0}
+  .dtb .sp{height:7px}
+  .dtb .quote{border-left:3px solid #dfe3ea;padding-left:9px;color:#475467;margin:3px 0}
+  .dtb .li{margin:2px 0 2px 3px}
+  .dtb code{background:#f4f5f7;border-radius:4px;padding:0 4px;font-size:12px}
+  .dtb pre.plain{white-space:pre-wrap;font:inherit;margin:0;color:#1b1f24}
+  .dtb a{color:#2f6bff}
+  @media(max-width:640px){.grid2,.grid3{grid-template-columns:1fr}.row{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<header><div class="wrap bar">
+  <div class="logo">⏰</div><h1>定时提醒</h1>
+  <div class="spacer"></div>
+  <button class="btn" onclick="openSettings()">通知设置</button>
+  <button class="btn primary" onclick="openEditor()">新建提醒</button>
+</div></header>
+
+<main class="wrap">
+  <div class="tabs">
+    <div class="tab active" data-tab="rules">提醒列表</div>
+    <div class="tab" data-tab="logs">发送日志</div>
+  </div>
+
+  <section id="tab-rules"><div id="list"></div></section>
+
+  <section id="tab-logs" style="display:none">
+    <div class="card" style="padding:0;overflow:auto">
+      <table><thead><tr><th style="width:150px">时间</th><th>提醒</th><th style="width:80px">通道</th><th style="width:60px">结果</th><th>详情</th></tr></thead>
+      <tbody id="logbody"></tbody></table>
+    </div>
+  </section>
+</main>
+
+<!-- 规则编辑器 -->
+<div class="mask" id="editor">
+  <div class="modal">
+    <h2 id="ed-title">新建提醒</h2>
+    <p class="hint">支持"每天某时段内每隔一段时间提醒一次"，也支持一次性、每日定点、每周定点。</p>
+
+    <label>提醒标题</label>
+    <input id="f-title" placeholder="例如：起来喝水 / 提交日报" />
+    <label>提醒内容（可选，支持 Markdown 与 emoji）</label>
+    <textarea id="f-body" placeholder="例如：记得接水，顺便看看窗外。&#10;也可以写 **加粗**、- 列表、<font color=#e11d48>红字</font> 和 💧"></textarea>
+    <div class="tools">
+      <span class="tools-label">快捷表情</span>
+      <button class="chip" onmousedown="event.preventDefault()" onclick="bodyInsert('💧')">💧</button>
+      <button class="chip" onmousedown="event.preventDefault()" onclick="bodyInsert('☕')">☕</button>
+      <button class="chip" onmousedown="event.preventDefault()" onclick="bodyInsert('✅')">✅</button>
+      <button class="chip" onmousedown="event.preventDefault()" onclick="bodyInsert('📝')">📝</button>
+      <button class="chip" onmousedown="event.preventDefault()" onclick="bodyInsert('🔥')">🔥</button>
+      <button class="chip" onmousedown="event.preventDefault()" onclick="bodyInsert('⏰')">⏰</button>
+      <button class="btn sm" style="margin-left:auto" onclick="previewRule()">预览效果</button>
+    </div>
+
+    <label>触发方式</label>
+    <select id="f-type" onchange="renderTypeFields()">
+      <option value="daily_window">每天某个时间段内，每隔一段时间提醒</option>
+      <option value="daily">每天固定时刻（可多个）</option>
+      <option value="weekly">每周指定几天固定时刻</option>
+      <option value="once">一次性（指定日期时间）</option>
+      <option value="interval">从某时刻起每隔 N 分钟</option>
+    </select>
+
+    <div id="type-fields"></div>
+
+    <label>通知通道（可多选）</label>
+    <div class="checks">
+      <label><input type="checkbox" id="f-dt1" checked /> <span id="ch-t1">钉钉机器人1</span></label>
+      <label><input type="checkbox" id="f-dt2" /> <span id="ch-t2">钉钉机器人2</span></label>
+      <label><input type="checkbox" id="f-email" /> <span id="ch-t3">邮件</span></label>
+      <label style="margin-left:auto"><input type="checkbox" id="f-enabled" checked /> 启用</label>
+    </div>
+    <p class="hint" id="ch-hint">机器人1/2 各自对应「通知设置」里的一套 webhook，可分别推到不同的群。</p>
+
+    <div class="foot">
+      <button class="btn" onclick="closeEditor()">取消</button>
+      <button class="btn primary" onclick="saveRule()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 设置 -->
+<div class="mask" id="settings">
+  <div class="modal">
+    <h2>通知设置</h2>
+    <p class="hint">配置保存在本地 SQLite，不会上传到任何地方。</p>
+
+    <div class="chan">
+      <h3>钉钉群机器人 1</h3>
+      <label>Webhook（https://oapi.dingtalk.com/robot/send?access_token=…）</label>
+      <input id="s-dt1-webhook" placeholder="https://oapi.dingtalk.com/robot/send?access_token=xxx" />
+      <div class="grid2">
+        <div><label>加签 Secret（可选）</label><input id="s-dt1-secret" placeholder="SEC…" /></div>
+        <div><label>自定义关键词（可选）</label><input id="s-dt1-keyword" placeholder="提醒" /></div>
+      </div>
+      <div style="margin-top:10px"><button class="btn sm" onclick="testChannel('dingtalk1')">发送测试消息</button>
+        <span class="hint" id="dt1-test"></span></div>
+    </div>
+
+    <div class="chan">
+      <h3>钉钉群机器人 2</h3>
+      <label>Webhook（可留空，留空则该机器人不可用）</label>
+      <input id="s-dt2-webhook" placeholder="https://oapi.dingtalk.com/robot/send?access_token=yyy" />
+      <div class="grid2">
+        <div><label>加签 Secret（可选）</label><input id="s-dt2-secret" placeholder="SEC…" /></div>
+        <div><label>自定义关键词（可选）</label><input id="s-dt2-keyword" placeholder="提醒" /></div>
+      </div>
+      <div style="margin-top:10px"><button class="btn sm" onclick="testChannel('dingtalk2')">发送测试消息</button>
+        <span class="hint" id="dt2-test"></span></div>
+    </div>
+
+    <div class="chan">
+      <h3>邮件（SMTP）</h3>
+    <div class="grid3">
+      <div><label>SMTP 服务器</label><input id="s-em-host" placeholder="smtp.qq.com" /></div>
+      <div><label>端口</label><input id="s-em-port" placeholder="465" /></div>
+      <div><label>加密</label>
+        <select id="s-em-ssl"><option value="1">SSL（465）</option><option value="0">STARTTLS（587）</option></select>
+      </div>
+    </div>
+    <div class="grid2">
+      <div><label>账号</label><input id="s-em-user" placeholder="you@qq.com" /></div>
+      <div><label>授权码 / 密码</label><input id="s-em-pass" type="password" placeholder="邮箱授权码" /></div>
+    </div>
+    <div class="grid2">
+      <div><label>发件人（可选）</label><input id="s-em-sender" placeholder="留空则用账号" /></div>
+      <div><label>收件人（多个用逗号分隔）</label><input id="s-em-to" placeholder="a@x.com,b@y.com" /></div>
+    </div>
+    <div style="margin-top:10px"><button class="btn sm" onclick="testChannel('email')">发送测试邮件</button>
+      <span class="hint" id="em-test"></span></div>
+    </div>
+
+    <div class="chan">
+      <h3>消息样式</h3>
+      <p class="hint" style="margin-top:6px">
+        钉钉按 Markdown 渲染：<code>### 标题</code>、<code>**加粗**</code>、<code>&gt; 引用</code>、<code>- 列表</code>、<code>[文字](链接)</code>；
+        颜色写 <code>&lt;font color=#e11d48&gt;文字&lt;/font&gt;</code>（六位色值、必须成对闭合，不加引号兼容手机端）；emoji 直接输入。
+        邮件用同一份内容自动转成纯文本。
+      </p>
+      <div class="seg" id="tpl-seg">
+        <button class="seg-btn active" data-fmt="dingtalk" onclick="setTplFmt('dingtalk')">钉钉（Markdown）</button>
+        <button class="seg-btn" data-fmt="text" onclick="setTplFmt('text')">邮件（纯文本）</button>
+      </div>
+      <textarea id="s-tpl" class="mono" spellcheck="false" oninput="previewTpl()"></textarea>
+      <div class="tools">
+        <span class="tools-label">表情</span>
+        <button class="chip" onmousedown="event.preventDefault()" onclick="tplInsert('🔔')">🔔</button>
+        <button class="chip" onmousedown="event.preventDefault()" onclick="tplInsert('📅')">📅</button>
+        <button class="chip" onmousedown="event.preventDefault()" onclick="tplInsert('🗓')">🗓</button>
+        <button class="chip" onmousedown="event.preventDefault()" onclick="tplInsert('⏰')">⏰</button>
+        <button class="chip" onmousedown="event.preventDefault()" onclick="tplInsert('📌')">📌</button>
+        <button class="chip" onmousedown="event.preventDefault()" onclick="tplInsert('✅')">✅</button>
+        <button class="chip" onmousedown="event.preventDefault()" onclick="tplInsert('💧')">💧</button>
+        <button class="chip" onmousedown="event.preventDefault()" onclick="tplInsert('📮')">📮</button>
+        <button class="chip" onmousedown="event.preventDefault()" onclick="tplInsert('🔥')">🔥</button>
+        <button class="chip" onmousedown="event.preventDefault()" onclick="tplInsert('💡')">💡</button>
+        <button class="chip" onmousedown="event.preventDefault()" onclick="tplInsert('⚠️')">⚠️</button>
+      </div>
+      <div class="tools">
+        <span class="tools-label">颜色</span>
+        <button class="sw" style="background:#e11d48" title="红 #e11d48" onmousedown="event.preventDefault()" onclick="tplColor('#e11d48')"></button>
+        <button class="sw" style="background:#f97316" title="橙 #f97316" onmousedown="event.preventDefault()" onclick="tplColor('#f97316')"></button>
+        <button class="sw" style="background:#16a34a" title="绿 #16a34a" onmousedown="event.preventDefault()" onclick="tplColor('#16a34a')"></button>
+        <button class="sw" style="background:#1677ff" title="蓝 #1677ff" onmousedown="event.preventDefault()" onclick="tplColor('#1677ff')"></button>
+        <button class="sw" style="background:#8f959e" title="灰 #8f959e" onmousedown="event.preventDefault()" onclick="tplColor('#8f959e')"></button>
+        <button class="sw" style="background:#7c3aed" title="紫 #7c3aed" onmousedown="event.preventDefault()" onclick="tplColor('#7c3aed')"></button>
+      </div>
+      <div class="tools">
+        <span class="tools-label">变量</span>
+        <span id="tpl-vars" style="display:flex;gap:6px;flex-wrap:wrap"></span>
+      </div>
+      <div class="pv-label"><span id="tpl-pv-label">预览（钉钉群里的近似效果）</span><span id="tpl-chars"></span></div>
+      <div class="dtb" id="tpl-pv"></div>
+      <div style="margin-top:10px">
+        <button class="btn sm" onclick="tplReset()">恢复默认模板</button>
+        <span class="hint">留空 = 使用内置默认样式。</span>
+      </div>
+    </div>
+
+    <label style="margin-top:20px">错过触发的容忍时间（秒）</label>
+    <input id="s-grace" placeholder="300" />
+    <p class="hint">例如 NAS 关机错过 9:00 的提醒，若开机时已迟到 300 秒以内则补发，否则跳过并在日志中记录。</p>
+
+    <div class="foot">
+      <button class="btn" onclick="document.getElementById('settings').classList.remove('show')">关闭</button>
+      <button class="btn primary" onclick="saveSettings()">保存设置</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- 通用确认/输入弹层：不用原生 confirm/prompt，iframe 内会被浏览器拦截 -->
+<div class="mask" id="dlg" style="z-index:40">
+  <div class="modal" style="max-width:420px">
+    <h2 id="dlg-title">确认</h2>
+    <p class="hint" id="dlg-msg" style="margin:8px 0 0"></p>
+    <div id="dlg-input-wrap" style="display:none;margin-top:10px">
+      <input id="dlg-input" />
+    </div>
+    <div class="foot">
+      <button class="btn" onclick="dlgClose(false)">取消</button>
+      <button class="btn primary" onclick="dlgClose(true)">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- 消息预览：让用户在保存前先看到钉钉里大概长什么样 -->
+<div class="mask" id="pv" style="z-index:35">
+  <div class="modal" style="max-width:520px">
+    <h2>消息预览</h2>
+    <p class="hint">按当前模板 + 这条提醒的内容渲染的近似效果，实际排版以钉钉客户端为准。</p>
+    <div class="dtb" id="pv-body" style="margin-top:10px"></div>
+    <div class="foot">
+      <button class="btn" onclick="document.getElementById('pv').classList.remove('show')">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const WD = ['一','二','三','四','五','六','日'];
+let editingId = null;
+let currentType = 'daily_window';
+const TOKEN_KEY = 'fnnas_reminder_token';
+// 通道键 -> 界面文案（与后端 notify.REGISTRY 对应）
+const CH_LABEL = {dingtalk1:'钉钉机器人1', dingtalk2:'钉钉机器人2', email:'邮件'};
+const chName = (k) => CH_LABEL[k] || k;
+
+/* 通知设置缓存：用来在界面上标出「未配置」的通道 */
+let CFG = null;
+async function loadCfg(force){
+  if(!CFG || force) CFG = await api('/api/settings');
+  return CFG;
+}
+function chReady(k){
+  const c = (CFG && CFG[k]) || {};
+  if(k === 'email') return !!(String(c.host||'').trim() && String(c.to||'').trim());
+  return /^https:\/\//.test(String(c.webhook||'').trim());
+}
+function paintChannelHints(){
+  const rows = [['ch-t1','dingtalk1','钉钉机器人1'], ['ch-t2','dingtalk2','钉钉机器人2'], ['ch-t3','email','邮件']];
+  const missing = [];
+  rows.forEach(([lblId, key, name])=>{
+    const el = $(lblId);
+    if(!el) return;
+    const ok = chReady(key);
+    el.textContent = ok ? name : name + '（未配置）';
+    el.style.color = ok ? '' : '#b26b00';
+    if(!ok) missing.push(name);
+  });
+  const hint = $('ch-hint');
+  if(!hint) return;
+  hint.textContent = missing.length
+    ? '未配置的通道发送时会自动跳过，不计为失败。' + missing.join('、') + ' 需先到「通知设置」配好并发送测试。'
+    : '机器人1/2 各自对应「通知设置」里的一套 webhook，可分别推到不同的群。';
+}
+const chLabelOf = (list) => (list||[]).map(k=>chName(k) + ((CFG && !chReady(k)) ? '（未配置）' : '')).join(' + ') || '未选通道';
+
+const $ = (id) => document.getElementById(id);
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2200); }
+function getToken(){ return localStorage.getItem(TOKEN_KEY) || ''; }
+
+/* ---------- 页内确认/输入框 ----------
+   原生 confirm()/prompt() 在被 iframe 嵌入时（预览面板、飞牛应用中心）
+   会被浏览器直接拦截：confirm 恒返回 false、prompt 恒返回 null，
+   表现就是「点了删除没反应」。所以自己画一个。 */
+let _dlgResolve = null;
+
+function _dlgOpen({title='确认', msg='', input=false, value=''}) {
+  // 上一个还没关掉的弹层：先按取消结算，避免 Promise 悬挂
+  if(_dlgResolve) { const r = _dlgResolve; _dlgResolve = null; r(input ? null : false); }
+  $('dlg-title').textContent = title;
+  $('dlg-msg').textContent = msg;
+  $('dlg-input-wrap').style.display = input ? '' : 'none';
+  $('dlg-input').value = value;
+  $('dlg').classList.add('show');
+  if(input) setTimeout(()=>{ const el=$('dlg-input'); el.focus(); el.select(); }, 30);
+  return new Promise(resolve => { _dlgResolve = resolve; });
+}
+
+function dlgClose(ok) {
+  if(!_dlgResolve) return;
+  const resolve = _dlgResolve;
+  _dlgResolve = null;
+  const inputShown = $('dlg-input-wrap').style.display !== 'none';
+  $('dlg').classList.remove('show');
+  resolve(ok ? (inputShown ? $('dlg-input').value : true) : (inputShown ? null : false));
+}
+
+const uiConfirm = (msg, title='确认') => _dlgOpen({title, msg});
+const uiPrompt  = (msg, value='', title='请输入') => _dlgOpen({title, msg, input:true, value});
+
+document.addEventListener('keydown', e=>{
+  if(!$('dlg').classList.contains('show')) return;
+  if(e.key === 'Escape') dlgClose(false);
+  if(e.key === 'Enter') dlgClose(true);
+});
+
+// 带口令重试的 fetch：401 时提示输入口令，成功后自动重放本次请求
+async function api(path, opts={}, retried=false){
+  const headers = {'Content-Type':'application/json'};
+  const tk = getToken();
+  if(tk) headers['X-Admin-Token'] = tk;
+  const r = await fetch(path, {...opts, headers});
+  const j = await r.json().catch(()=>({}));
+  if(r.status === 401){
+    if(retried) throw new Error('口令错误');
+    const t = await uiPrompt('该实例已启用访问口令，请输入 ADMIN_TOKEN：', '', '需要口令');
+    if(!t) throw new Error('未输入口令');
+    localStorage.setItem(TOKEN_KEY, t.trim());
+    return api(path, opts, true);
+  }
+  if(!r.ok) throw new Error(j.error || ('HTTP '+r.status));
+  return j;
+}
+function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ---------- 列表 ---------- */
+const STATE = {active:['启用','on'], paused:['已暂停','off'], completed:['已完成','done']};
+
+async function loadRules(){
+  const rules = await api('/api/rules');
+  const box = $('list');
+  if(!rules.length){ box.innerHTML = '<div class="card empty">还没有提醒，点右上角「新建提醒」开始。</div>'; return; }
+  box.innerHTML = rules.map(r=>{
+    const st = STATE[r.state] || STATE.active;
+    const done = r.state === 'completed';
+    const actions = done
+      ? `<button class="btn sm" onclick="openEditor(${r.id})">重新设置</button>
+         <button class="btn sm danger" onclick="delRule(${r.id})">删除</button>`
+      : `<button class="btn sm" onclick="testRule(${r.id})">试发</button>
+         <button class="btn sm" onclick="snoozeRule(${r.id})">稍后</button>
+         <button class="btn sm" onclick="skipRule(${r.id})">跳过本次</button>
+         <button class="btn sm" onclick="toggleRule(${r.id})">${r.enabled?'暂停':'启用'}</button>
+         <button class="btn sm" onclick="openEditor(${r.id})">编辑</button>
+         <button class="btn sm danger" onclick="delRule(${r.id})">删除</button>`;
+    return `
+    <div class="card ${done?'done':''}">
+      <div class="row">
+        <div class="grow">
+          <div class="title">${esc(r.title)}</div>
+          <div class="meta">
+            <span class="pill ${st[1]}">${st[0]}</span>
+            <span>${esc(r.desc)}</span>
+            ${r.next_run_at?`<span>下次：<code>${r.next_run_at}</code></span>`:'<span>无后续触发</span>'}
+            ${r.snooze_until?`<span style="color:#b26b00">稍后：<code>${r.snooze_until}</code></span>`:''}
+            <span>${esc(chLabelOf(r.channels))}</span>
+            ${r.last_run_at?`<span>上次：${r.last_run_at}</span>`:''}
+          </div>
+          ${r.body?`<div class="meta" style="margin-top:6px;color:#98a2b3">${esc(r.body)}</div>`:''}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">${actions}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function toggleRule(id){ try{ await api('/api/rules/'+id+'/toggle',{method:'POST'}); loadRules(); }catch(e){ toast(e.message); } }
+async function skipRule(id){ try{ await api('/api/rules/'+id+'/skip',{method:'POST'}); toast('已跳过本次'); loadRules(); }catch(e){ toast(e.message); } }
+async function snoozeRule(id){
+  const v = await uiPrompt('多少分钟后再提醒一次？（不改动原定周期）', '15', '稍后提醒');
+  if(v === null) return;
+  const m = parseInt(v, 10);
+  if(!m || m < 1 || m > 1440){ toast('请输入 1–1440 的分钟数'); return; }
+  try{ const r = await api('/api/rules/'+id+'/snooze',{method:'POST', body:JSON.stringify({minutes:m})});
+    toast('已安排在 ' + r.snooze_until); loadRules();
+  }catch(e){ toast(e.message); }
+}
+async function testRule(id){
+  toast('发送中…');
+  try{
+    const r = await api('/api/rules/'+id+'/test',{method:'POST'});
+    // 只看这条规则本次的结果：以前拿的是全局最近日志，会串到别的规则的失败
+    const bad = (r.results||[]).filter(x=>x.status==='failed');
+    toast(bad.length ? ('发送失败：' + r.message) : r.message);
+    loadRules();
+  }catch(e){ toast(e.message); }
+}
+async function delRule(id){
+  const ok = await uiConfirm('删除后该提醒的所有设置都会消失，已发送的日志会保留。', '确定删除这条提醒？');
+  if(!ok) return;
+  try{
+    await api('/api/rules/'+id,{method:'DELETE'});
+    toast('已删除'); loadRules();
+  }catch(e){ toast('删除失败：'+e.message); }
+}
+
+/* ---------- 编辑器 ---------- */
+function insertAtCursor(el, text){
+  el.focus();
+  const s = el.selectionStart ?? el.value.length;
+  const e = el.selectionEnd ?? s;
+  el.value = el.value.slice(0,s) + text + el.value.slice(e);
+  el.selectionStart = el.selectionEnd = s + text.length;
+  return el.value;
+}
+function bodyInsert(t){ insertAtCursor($('f-body'), t); }
+async function previewRule(){
+  try{
+    // 用「当前编辑中的标题/内容 + 已保存的模板」渲染，不必先保存
+    const r = await api('/api/template/preview',{method:'POST', body:JSON.stringify({
+      format:'dingtalk',
+      title: $('f-title').value.trim() || '提醒标题',
+      content: $('f-body').value,
+      rule: buildRule(),
+      reason: '定时触发'
+    })});
+    $('pv-body').innerHTML = r.html || '<div class="p">（空）</div>';
+    $('pv').classList.add('show');
+  }catch(e){ toast('预览失败：'+e.message); }
+}
+
+function daysHtml(selected){
+  return `<div class="days" id="f-days">${WD.map((w,i)=>{
+    const v=i+1, on=(selected||[]).includes(v);
+    return `<div class="day ${on?'on':''}" data-v="${v}" onclick="this.classList.toggle('on')">${w}</div>`;
+  }).join('')}</div>`;
+}
+function renderTypeFields(rule){
+  const t = $('f-type').value; currentType = t;
+  const box = $('type-fields');
+  const r = rule || {};
+  if(t==='daily_window'){
+    box.innerHTML = `
+      <div class="grid3">
+        <div><label>开始时间</label><input id="w-start" type="time" value="${esc(r.start||'09:00')}" /></div>
+        <div><label>结束时间</label><input id="w-end" type="time" value="${esc(r.end||'18:00')}" /></div>
+        <div><label>间隔（分钟）</label><input id="w-iv" type="number" min="1" value="${esc(r.interval_minutes||60)}" /></div>
+      </div>
+      <label>生效星期（不选=每天）</label>${daysHtml(r.days)}`;
+  } else if(t==='daily'){
+    box.innerHTML = `<label>时刻（多个用英文逗号分隔）</label><input id="d-times" value="${esc((r.times||['09:00']).join(','))}" />`;
+  } else if(t==='weekly'){
+    box.innerHTML = `<label>生效星期</label>${daysHtml(r.days||[1,2,3,4,5])}
+      <label>时刻（多个用英文逗号分隔）</label><input id="d-times" value="${esc((r.times||['09:00']).join(','))}" />`;
+  } else if(t==='once'){
+    const defAt = new Date(Date.now() + 3600e3 - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
+    box.innerHTML = `<label>触发时间</label><input id="o-at" type="datetime-local" value="${esc((r.at||'').replace(' ','T')||defAt)}" />`;
+  } else if(t==='interval'){
+    const defStart = new Date(Date.now() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
+    box.innerHTML = `
+      <div class="grid2">
+        <div><label>起始时间</label><input id="i-start" type="datetime-local" value="${esc((r.start||'').replace(' ','T')||defStart)}" /></div>
+        <div><label>间隔（分钟）</label><input id="i-every" type="number" min="1" value="${esc(r.every_minutes||90)}" /></div>
+      </div>`;
+  }
+}
+function collectDays(){ return [...document.querySelectorAll('#f-days .day.on')].map(d=>+d.dataset.v); }
+
+function openEditor(id){
+  editingId = id || null;
+  $('ed-title').textContent = id ? '编辑提醒' : '新建提醒';
+  const reset = {title:'', body:'', rule:{type:'daily_window', start:'09:00', end:'18:00', interval_minutes:60, days:[]}, channels:['dingtalk1'], enabled:true};
+  if(!id){ fillEditor(reset); }
+  else {
+    api('/api/rules').then(list=>{
+      const r = list.find(x=>x.id===id);
+      if(r) fillEditor(r);
+    });
+  }
+  loadCfg().then(paintChannelHints).catch(()=>{});
+  $('editor').classList.add('show');
+}
+function fillEditor(r){
+  $('f-title').value = r.title||'';
+  $('f-body').value = r.body||'';
+  $('f-type').value = r.rule?.type || 'daily_window';
+  renderTypeFields(r.rule||{});
+  const ch = r.channels||[];
+  $('f-dt1').checked = ch.includes('dingtalk1');
+  $('f-dt2').checked = ch.includes('dingtalk2');
+  $('f-email').checked = ch.includes('email');
+  $('f-enabled').checked = r.enabled !== false;
+}
+function closeEditor(){ $('editor').classList.remove('show'); }
+
+function buildRule(){
+  const t = currentType;
+  if(t==='daily_window') return {type:t, start:$('w-start').value||'09:00', end:$('w-end').value||'18:00', interval_minutes:+($('w-iv').value||60), days:collectDays()};
+  if(t==='daily') return {type:t, times:($('d-times').value||'').split(',').map(s=>s.trim()).filter(Boolean)};
+  if(t==='weekly') return {type:t, days:collectDays(), times:($('d-times').value||'').split(',').map(s=>s.trim()).filter(Boolean)};
+  if(t==='once') return {type:t, at:($('o-at').value||'').replace('T',' ')};
+  return {type:'interval', start:($('i-start').value||'').replace('T',' '), every_minutes:+($('i-every').value||60)};
+}
+async function saveRule(){
+  const channels = [];
+  if($('f-dt1').checked) channels.push('dingtalk1');
+  if($('f-dt2').checked) channels.push('dingtalk2');
+  if($('f-email').checked) channels.push('email');
+  const payload = {title:$('f-title').value.trim(), body:$('f-body').value, rule:buildRule(), channels, enabled:$('f-enabled').checked};
+  if(!payload.title){ toast('先填个标题'); return; }
+  if(!channels.length){ toast('至少选一个通知通道'); return; }
+  try{
+    if(editingId) await api('/api/rules/'+editingId, {method:'PUT', body:JSON.stringify(payload)});
+    else await api('/api/rules', {method:'POST', body:JSON.stringify(payload)});
+    closeEditor(); loadRules(); toast('已保存');
+  }catch(e){ toast(e.message); }
+}
+
+/* ---------- 设置 ---------- */
+function fillRobot(n, cfg){
+  cfg = cfg || {};
+  $('s-dt'+n+'-webhook').value = cfg.webhook || '';
+  $('s-dt'+n+'-secret').value = cfg.secret || '';
+  $('s-dt'+n+'-keyword').value = cfg.keyword || '';
+  $('dt'+n+'-test').textContent = '';
+}
+function readRobot(n){
+  return {
+    enabled: !!$('s-dt'+n+'-webhook').value.trim(),
+    webhook: $('s-dt'+n+'-webhook').value.trim(),
+    secret:  $('s-dt'+n+'-secret').value.trim(),
+    keyword: $('s-dt'+n+'-keyword').value.trim()
+  };
+}
+async function openSettings(){
+  const [s, t] = await Promise.all([api('/api/settings'), api('/api/template')]);
+  CFG = s;
+  TPLINFO = t;
+  TPL = {dingtalk: t.dingtalk, text: t.text};
+  fillRobot(1, s.dingtalk1);
+  fillRobot(2, s.dingtalk2);
+  $('s-em-host').value = s.email?.host || '';
+  $('s-em-port').value = s.email?.port || 465;
+  $('s-em-ssl').value = s.email?.ssl ? '1' : '0';
+  $('s-em-user').value = s.email?.user || '';
+  $('s-em-pass').value = s.email?.password || '';
+  $('s-em-sender').value = s.email?.sender || '';
+  $('s-em-to').value = s.email?.to || '';
+  $('s-grace').value = s.grace_seconds ?? 300;
+  $('em-test').textContent = '';
+  renderTplVars();
+  setTplFmt('dingtalk');
+  $('settings').classList.add('show');
+}
+async function saveSettings(){
+  // 先把当前正在编辑的那套模板同步进内存，避免切过 tab 后丢掉未保存的改动
+  if(TPLINFO && $('s-tpl')) TPL[tplFmt] = $('s-tpl').value;
+  // 与内置默认一致就存空串 —— 以后升级默认模板时，没自定义过的用户能自动跟上
+  const keepDefault = (fmt) => (!$('s-tpl') ? undefined
+      : (TPL[fmt] === TPLINFO.defaults[fmt] ? '' : TPL[fmt]));
+  const payload = {
+    grace_seconds: +( $('s-grace').value || 300 ),
+    template: {dingtalk: keepDefault('dingtalk'), text: keepDefault('text')},
+    dingtalk1: readRobot(1),
+    dingtalk2: readRobot(2),
+    email:{enabled:!!$('s-em-host').value, host:$('s-em-host').value.trim(), port:+($('s-em-port').value||465), ssl:$('s-em-ssl').value==='1',
+           user:$('s-em-user').value.trim(), password:$('s-em-pass').value, sender:$('s-em-sender').value.trim(), to:$('s-em-to').value.trim()}
+  };
+  try{
+    await api('/api/settings',{method:'POST', body:JSON.stringify(payload)});
+    toast('设置已保存');
+    CFG = null;                       // 配置变了，通道「未配置」标记要重算
+    loadCfg().then(c=>{ paintChannelHints(); }).catch(()=>{}).then(()=>loadRules()).catch(()=>{});
+  }
+  catch(e){ toast(e.message); }
+}
+async function testChannel(ch){
+  const box = ch==='email' ? $('em-test') : $('dt'+(ch==='dingtalk2'?2:1)+'-test');
+  box.textContent = '发送中…'; box.className='hint';
+  try{
+    // 先保存，避免「填了 webhook 直接点测试」测的是旧配置
+    await saveSettings();
+    const r = await api('/api/settings/test',{method:'POST', body:JSON.stringify({channel:ch})});
+    box.textContent = r.detail; box.className = 'hint ' + (r.ok?'ok':'bad');
+  }catch(e){ box.textContent = e.message; box.className='hint bad'; }
+}
+
+/* ---------- 消息模板 ---------- */
+let TPLINFO = null;              // {dingtalk,text,defaults,labels,vars}
+let TPL = {dingtalk:'', text:''}; // 两套模板的编辑态
+let tplFmt = 'dingtalk';
+let pvTimer = null, pvSeq = 0;
+
+function renderTplVars(){
+  if(!TPLINFO) return;
+  $('tpl-vars').innerHTML = TPLINFO.vars.map(v=>
+    `<button class="chip wide" title="${esc(v.desc)}" onmousedown="event.preventDefault()"
+       onclick="tplInsert('{${v.name}}')">{${esc(v.name)}}</button>`).join('');
+}
+function setTplFmt(fmt){
+  if(!TPLINFO) return;
+  // 不在这里回写 TPL[tplFmt]：第一次打开时文本框还是空的，会把刚取回来的模板冲掉。
+  // 编辑过程中的同步由 previewTpl / tplInsert / tplColor 负责（每次输入都会同步）。
+  tplFmt = fmt;
+  $('s-tpl').value = TPL[fmt] || '';
+  $('tpl-pv-label').textContent = fmt === 'text' ? '预览（邮件正文）' : '预览（钉钉群里的近似效果）';
+  document.querySelectorAll('#tpl-seg .seg-btn').forEach(b=>
+    b.classList.toggle('active', b.dataset.fmt === fmt));
+  previewTpl();
+}
+function tplInsert(text){
+  const ta = $('s-tpl');
+  insertAtCursor(ta, text);
+  TPL[tplFmt] = ta.value;
+  previewTpl();
+}
+function tplColor(hex){
+  const ta = $('s-tpl');
+  ta.focus();
+  const s = ta.selectionStart ?? ta.value.length;
+  const e = ta.selectionEnd ?? s;
+  const sel = ta.value.slice(s, e) || '重点文字';
+  const wrapped = `<font color=${hex}>${sel}</font>`;
+  ta.value = ta.value.slice(0,s) + wrapped + ta.value.slice(e);
+  ta.selectionStart = s; ta.selectionEnd = s + wrapped.length;
+  TPL[tplFmt] = ta.value;
+  previewTpl();
+}
+function previewTpl(){
+  if(!TPLINFO) return;
+  TPL[tplFmt] = $('s-tpl').value;
+  clearTimeout(pvTimer);
+  pvTimer = setTimeout(async ()=>{
+    const seq = ++pvSeq;
+    try{
+      const r = await api('/api/template/preview',{method:'POST',
+        body:JSON.stringify({format:tplFmt, template:$('s-tpl').value})});
+      if(seq !== pvSeq) return;   // 只认最后一次，避免打字快时旧结果盖新结果
+      $('tpl-pv').innerHTML = tplFmt === 'dingtalk'
+        ? (r.html || '<div class="p">（空）</div>')
+        : `<pre class="plain">${esc(r.text)}</pre>`;
+      $('tpl-chars').textContent = r.chars + ' 字符' + (r.chars > 7900 ? '（过长会被截断）' : '');
+    }catch(e){ /* 预览失败不打扰用户，保存时还会再校验 */ }
+  }, 260);
+}
+async function tplReset(){
+  if(!TPLINFO) return;
+  const ok = await uiConfirm('把「' + (TPLINFO.labels[tplFmt]||tplFmt) + '」的模板恢复成内置默认？', '恢复默认模板');
+  if(!ok) return;
+  TPL[tplFmt] = TPLINFO.defaults[tplFmt];
+  $('s-tpl').value = TPL[tplFmt];
+  previewTpl();
+}
+
+/* ---------- 日志 ---------- */
+async function loadLogs(){
+  const logs = await api('/api/logs');
+  $('logbody').innerHTML = logs.map(l=>{
+    const st = l.status==='skipped' ? ['跳过','skip'] : (l.ok?['成功','ok']:['失败','bad']);
+    return `<tr>
+    <td>${esc(l.ts)}</td><td>${esc(l.title||'-')}</td><td>${esc(chName(l.channel))}</td>
+    <td class="${st[1]}">${st[0]}</td>
+    <td style="color:#6b7280">${esc(l.detail||'')}</td></tr>`;
+  }).join('')
+    || '<tr><td colspan="5" style="color:#98a2b3">暂无记录</td></tr>';
+}
+
+/* ---------- tabs ---------- */
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  const isRules = t.dataset.tab==='rules';
+  $('tab-rules').style.display = isRules?'':'none';
+  $('tab-logs').style.display = isRules?'none':'';
+  if(!isRules) loadLogs();
+});
+
+loadCfg().catch(()=>{})
+  .then(()=>{ paintChannelHints(); return loadRules(); })
+  .catch(e=>toast(e.message));
+setInterval(()=>{ if($('tab-rules').style.display!=='none') loadRules().catch(()=>{}); }, 30000);
+</script>
+</body>
+</html>

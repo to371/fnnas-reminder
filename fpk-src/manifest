@@ -1,0 +1,16 @@
+appname         = fnnas.reminder
+version         = 1.3.2
+display_name    = 定时提醒
+desc            = 支持「每日时段内每小时提醒一次」、每日定点、每周定点、一次性等多种提醒规则，可通过两个钉钉群机器人与邮件推送，每条提醒自选通道。消息支持 Markdown 排版、emoji 与彩色文字，并可实时预览。数据完全保存在本地，无需外网账号。
+source          = thirdparty
+platform        = x86
+os_min_version  = 0.9.0
+install_dep_apps = python312
+desktop_uidir   = ui
+desktop_applaunchname = fnnas.reminder.Main
+service_port    = 8388
+checkport       = true
+ctl_stop        = true
+maintainer      = your-name
+maintainer_url  = https://github.com/your-name/fnnas-reminder
+changelog       = 1.3.2 安全加固（恒定时间口令比较、静态文件 realpath 收口、请求体大小上限、只接受 application/json）；开源首发。1.3.1 修复钉钉消息「不换行」：多行文字在群里被挤成一行，现在自动按空行分段（列表仍保持紧凑）。1.3.0 钉钉消息改为可自定义的 Markdown 模板：支持标题/加粗/引用/列表/链接、emoji 与 <font> 彩色文字，并带实时预览；邮件自动降级为纯文本。1.2.2 修复「试发」误报别的规则的邮件失败；未配置的通道改为静默跳过（不再算失败）；编辑器与列表标出未配置通道。1.2.1 修复页面被 iframe 嵌入时（应用中心/预览面板）删除、稍后提醒等确认弹窗被浏览器拦截导致点击无反应，改为页内弹层。1.2.0 支持两个钉钉群机器人（各自独立配置，每条提醒可自选机器人）；界面改为渐变背景；应用名统一为「定时提醒」。1.1.0 修复超过 24 小时的错过判定、时区绑定、并发发送队列；新增稍后提醒与完成态；新增可选访问口令。

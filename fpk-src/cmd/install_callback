@@ -1,0 +1,4 @@
+#!/bin/bash
+# 安装文件落盘之后执行。首次启动由应用中心通过 cmd/main start 拉起，这里不需要启动服务。
+mkdir -p "${TRIM_PKGVAR}/data" 2>/dev/null || true
+exit 0

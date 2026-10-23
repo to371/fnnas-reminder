@@ -1,0 +1,82 @@
+#!/bin/bash
+# fnnas.reminder 生命周期脚本
+# 由飞牛应用中心调用：main start | stop | status
+# status: 运行中 exit 0，未运行 exit 3
+
+APP_DIR="${TRIM_APPDEST}"
+DATA_DIR="${TRIM_PKGVAR}/data"
+LOG_FILE="${TRIM_PKGVAR}/app.log"
+PID_FILE="${TRIM_PKGVAR}/app.pid"
+PORT="${TRIM_SERVICE_PORT:-8388}"
+LOGFILE="${TRIM_TEMP_LOGFILE:-/dev/stderr}"
+
+# fnOS 的 Python 运行时（由 manifest 的 install_dep_apps=python312 自动安装）
+export PATH="/var/apps/python312/target/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+export TZ="Asia/Shanghai"
+export PYTHONUNBUFFERED=1
+export PYTHONIOENCODING=utf-8
+
+fail() { echo "$1" > "$LOGFILE"; exit 1; }
+
+running() {
+    [ -f "$PID_FILE" ] || return 1
+    local pid
+    pid=$(head -n 1 "$PID_FILE" 2>/dev/null | tr -d '[:space:]')
+    [ -n "$pid" ] || return 1
+    kill -0 "$pid" 2>/dev/null
+}
+
+case "$1" in
+start)
+    if running; then
+        echo "已在运行 (pid $(cat "$PID_FILE"))"
+        exit 0
+    fi
+    # python312 的 bin 已在文件头加到 PATH 最前；再兜底扫一遍 /var/apps/python3*
+    PY="$(command -v python3 || true)"
+    if [ -z "$PY" ]; then
+        PY="$(ls -1 /var/apps/python3*/target/bin/python3 2>/dev/null | head -n 1)"
+    fi
+    [ -n "$PY" ] || fail "未找到 python3，请在应用中心安装「Python 3.12」运行时（python312）后重试。"
+    [ -f "${APP_DIR}/server.py" ] || fail "应用文件缺失：${APP_DIR}/server.py"
+    mkdir -p "$DATA_DIR" || fail "无法创建数据目录：$DATA_DIR"
+
+    cd "$APP_DIR" || fail "无法进入应用目录：$APP_DIR"
+    DATA_DIR="$DATA_DIR" PORT="$PORT" "$PY" server.py >> "$LOG_FILE" 2>&1 &
+    echo $! > "$PID_FILE"
+    sleep 2
+
+    if running; then
+        echo "启动成功，端口 ${PORT}，数据目录 ${DATA_DIR}"
+        exit 0
+    fi
+    tail -n 20 "$LOG_FILE" > "$LOGFILE" 2>/dev/null
+    fail "启动失败，完整日志见 ${LOG_FILE}"
+    ;;
+
+stop)
+    if ! running; then
+        rm -f "$PID_FILE"
+        exit 0
+    fi
+    pid=$(head -n 1 "$PID_FILE" | tr -d '[:space:]')
+    kill -TERM "$pid" 2>/dev/null
+    for _ in $(seq 1 10); do
+        kill -0 "$pid" 2>/dev/null || break
+        sleep 1
+    done
+    kill -0 "$pid" 2>/dev/null && kill -KILL "$pid" 2>/dev/null
+    rm -f "$PID_FILE"
+    echo "已停止"
+    exit 0
+    ;;
+
+status)
+    running && exit 0
+    exit 3
+    ;;
+
+*)
+    exit 1
+    ;;
+esac

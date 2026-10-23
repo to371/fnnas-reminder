@@ -1,0 +1,9 @@
+#!/bin/bash
+# 升级前执行：只做备份，不动用户数据
+LOG="${TRIM_TEMP_LOGFILE:-/dev/stderr}"
+DB="${TRIM_PKGVAR}/data/reminder.db"
+if [ -f "$DB" ]; then
+    cp -f "$DB" "${DB}.bak.$(date +%Y%m%d%H%M%S)" 2>/dev/null || \
+        echo "警告：升级前备份数据库失败，继续升级（原库不会被删除）。" > "$LOG"
+fi
+exit 0
