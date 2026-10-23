@@ -82,7 +82,7 @@ FNPACK=/path/to/fnpack.exe ./scripts/build_fpk.sh   # 或直接指定路径
 ### 方式二：本地跑起来（不需要飞牛）
 
 ```bash
-git clone https://github.com/your-name/fnnas-reminder.git
+git clone https://github.com/to371/fnnas-reminder.git
 cd fnnas-reminder
 python app/server.py          # 需要 Python 3.12+；Windows 用 python app\server.py
 # 打开 http://localhost:8388
