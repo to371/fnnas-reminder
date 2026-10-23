@@ -1,0 +1,54 @@
+name: tests
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Python ${{ matrix.python }} · ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest ]
+        python: [ "3.12", "3.13" ]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      # 项目零第三方依赖，不需要 pip install；这条只是确认没人偷偷加了 import
+      - name: 依赖体检（只允许标准库）
+        run: |
+          python - <<'PY'
+          import ast, pathlib, sys
+          stdlib = set(sys.stdlib_module_names) | {"clock", "store", "rules", "notify",
+                                                    "dispatcher", "template"}
+          bad = []
+          for f in pathlib.Path("app").rglob("*.py"):
+              tree = ast.parse(f.read_text(encoding="utf-8"))
+              for node in ast.walk(tree):
+                  if isinstance(node, ast.Import):
+                      names = [a.name.split(".")[0] for a in node.names]
+                  elif isinstance(node, ast.ImportFrom) and node.level == 0:
+                      names = [(node.module or "").split(".")[0]]
+                  else:
+                      continue
+                  bad += [(str(f), n) for n in names if n and n not in stdlib]
+          if bad:
+              print("发现非标准库依赖：", bad)
+              raise SystemExit(1)
+          print("OK：仅使用标准库")
+          PY
+
+      - name: 单元测试
+        run: python -m unittest discover -s tests -p "test_*.py" -v
+
+      - name: 端到端冒烟（真实起服务，约 40 秒）
+        run: python tests/smoke_test.py
