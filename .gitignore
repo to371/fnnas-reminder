@@ -1,0 +1,31 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# ---- 运行时数据（本地试跑/冒烟测试产生的库，绝不要提交）----
+data/
+.demo-data/
+.smoke-data/
+.smoke-auth/
+.lifecycle/
+*.db
+*.db-wal
+*.db-shm
+
+# ---- 构建产物 ----
+# fpk-src/app 由 scripts/build_fpk.sh 每次从 app/ 重新同步，提交上去只会造成两份代码漂移
+fpk-src/app/
+fpk-src/wizard/
+*.fpk
+dist/
+
+# ---- 编辑器 / 系统 ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+.check.js

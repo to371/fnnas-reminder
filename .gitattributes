@@ -1,0 +1,17 @@
+# 仓库里统一用 LF。这条对 fnOS 很关键：
+# fpk 里的 cmd/* 是在 NAS 的 /bin/bash 下执行的，一旦被 Windows 的 autocrlf
+# 转成 CRLF，装上去就会报 "/bin/bash^M: bad interpreter"。
+# 所以这里显式钉死 eol=lf，压过用户本地的 core.autocrlf。
+* text=auto eol=lf
+
+*.sh   text eol=lf
+*.py   text eol=lf
+*.md   text eol=lf
+*.json text eol=lf
+manifest text eol=lf
+cmd/*  text eol=lf
+
+*.png  binary
+*.PNG  binary
+*.fpk  binary
+*.db   binary
